@@ -1,0 +1,39 @@
+﻿@model hIndexModel
+
+@{
+    Layout = null;
+
+    var controllerName = this.ViewContext.RouteData.Values["controller"].ToString();
+    var meta = (iModelMeta)Model.Model;
+    var windowIdValue = Model.Instructions.Buttons.Where(s => s.Policy == "Delete").Select(s => s.Args).FirstOrDefault().Where(s => s.Key.Contains("windowId")).Select(s => s.Value).ToArray().FirstOrDefault();
+    windowIdValue ??= Model.GetElementName(hIndexModel.eCommonNames.Grid);
+    var gridIdValue = Model.Instructions.Buttons.Where(s => s.Policy == "Delete").Select(s => s.Args).FirstOrDefault().Where(s => s.Key.Contains("gridId")).Select(s => s.Value).ToArray().FirstOrDefault();
+    gridIdValue ??= Model.GetElementName(hIndexModel.eCommonNames.DeleteWindow);
+    var idList = Model.SelectedRowIds;
+}
+
+<form method="post" id="@Model.GetElementName(hIndexModel.eCommonNames.DeleteForm)">
+    @for (int i = 0; i < idList.Count(); i++)
+    {
+        <input name="id[@i]" value="@idList[i]" hidden="hidden" readonly="readonly" />
+    }
+    @(Html.Kendo().Dialog()
+    .Name(@Model.GetElementName("DeleteConfirm"))
+    .Title(@SpolisResources._DeleteTitle)
+    .Content(@SpolisResources._DeleteConfirmMessage)
+    .Visible(true)
+    .Width(400)
+    .Modal(true)
+    .HtmlAttributes( new{
+    url=@Url.Action("DeleteConfirmMultiple", @controllerName),
+    frmId=@Model.GetElementName(hIndexModel.eCommonNames.DeleteForm),
+    gridId=@gridIdValue,
+    windowId=@windowIdValue
+    }).ButtonLayout("normal")
+    .Actions(actions =>
+    {
+    actions.Add().Text(@SpolisResources.BtnDelete).Primary(true).Action($"() => indexDeleteConfirmEngine($('#{(Model.GetElementName("DeleteConfirm"))}'))").CssClass("DialogueBtn");
+    actions.Add().Text(@SpolisResources.BtnClose).CssClass("k-group");
+    })
+    )
+</form>

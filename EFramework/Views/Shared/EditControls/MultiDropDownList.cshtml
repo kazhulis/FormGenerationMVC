@@ -1,0 +1,67 @@
+﻿@using Spolis
+@model hIndexModel
+@{
+    string key = ViewBag.Key;
+    string forID = Model.GetElementName("EditInput_" + key);
+
+    var attributes = Model.GenerateEditorControlAttributes(key);
+    //attributes.Add("class", "form-control form-control-sm");
+    //attributes.Add("id", forID);
+
+    if (Model.Location == hIndexModel.eLocation.Edit)
+    {
+        var updatePolicy = Model.GetPolicy(ModelPolicy.ePolicyType.Update);
+        //if (!string.IsNullOrEmpty(updatePolicy) && !(await AuthorizationService.AuthorizeAsync(User, updatePolicy)).Succeeded)
+       // {
+            if (!attributes.ContainsKey("readonly"))
+            {
+                attributes.Add("readonly", "readonly");
+                attributes.Add("hidden", "hidden");
+            }
+
+        //}
+    }
+
+    SelectList ItemSource = null;
+    var show = Model.GetAttribute<Show2>(key);
+    if (show.SourcePropertyName != null)
+    {
+        ItemSource = (SelectList)show.GetSourcePropertyValue(Model.ModelType, Model.Model);
+    }
+    if (ItemSource == null)
+    {
+        throw new Exception($"ItemSource not found for property '{key}' in model type '{Model.ModelType.Name}'");
+    }
+
+    var forName = $"Model.{key}.{nameof(StringList<Object>.InnerString)}";
+    var isEditable = show.IsEditableIn(hIndexModel.LocationToIn(Model.Location), Model.ModelType, Model.Model);
+    var value = Model.Properties[key].GetValue(Model.Model)?.ToString();
+    string[] val = null;
+    if (value != string.Empty && value != null) {
+        value = value.ToLower();
+        val = value.Split(StringList.DefaultSeperator);
+    }
+}
+
+
+<div class="row">
+    @Html.Label(forID, Model.Names[key], new { @class = "col-sm-4 col-form-label col-form-label-sm text-md-right text-sm-left" })
+
+    <div class="col-sm-8">
+        <input type="hidden" name="@forName" value="@value" />
+        
+        @(Html.Kendo().MultiSelect()
+        .Name(forID)
+        .Value(val)  
+        .Filter(FilterType.Contains)
+        .BindTo(ItemSource)
+                .DataTextField("Text")
+                .DataValueField("Value")
+                .HtmlAttributes((IDictionary<String, Object>)attributes)
+                .Enable(isEditable)
+        .Events(e=>e.Change($"(e)=>$('input[name=\"{forName}\"]').val(e.sender.value().join('{StringList.DefaultSeperator}'))"))
+                )
+
+        @Html.ValidationMessage("Model." + key, "", new { @class = "text-danger small" })
+    </div>
+</div>

@@ -1,0 +1,62 @@
+﻿@using System.Reflection;
+@model hIndexModel
+@{
+    string key = ViewBag.Key;
+    string forID = Model.GetElementName("EditInput_" + key);
+    var attributes = Model.GenerateEditorControlAttributes(key);
+    attributes.Add("class", "form-control form-control-sm");
+    attributes.Add("id", forID);
+
+   // var show = Model.Properties[key].GetCustomAttribute<Show3>();
+   // show?.Initialize(Model.Properties[key], Model);
+     var show3 = Model.Properties[key].GetCustomAttribute<Show3>();
+    show3?.Initialize(Model.Properties[key], Model);
+    var settings = (TextboxSettings)show3?.Settings;
+
+    var col = 8;
+    var colLabel = 4;
+    if (show3?.ControlWidth == 12)
+    {
+        col = 10;
+        colLabel = 2;
+    }
+    var showLabel = true;
+    var isEmpty = false;
+
+    if (settings != null)
+    {
+        if (settings.PlaceHolder != "")
+            attributes.Add("placeholder", settings.PlaceHolder);
+
+        if (!settings.ShowLabel)
+            showLabel = false;
+            
+        if (settings.isEmpty)
+            isEmpty = true;
+    }
+
+    if (Model.Location == hIndexModel.eLocation.Edit)
+    {
+        var updatePolicy = Model.GetPolicy(ModelPolicy.ePolicyType.Update);
+       // if (string.IsNullOrEmpty(updatePolicy) || !(await AuthorizationService.AuthorizeAsync(User, updatePolicy)).Succeeded)
+            if (!attributes.ContainsKey("readonly")) attributes.Add("readonly", "readonly");
+    }
+}
+
+<div class="row">
+    @if (Model.Names[key] != "" && showLabel && !isEmpty)
+    {
+        @Html.Label(forID, Model.Names[key], new { @class = $"col-sm-{colLabel} col-form-label col-form-label-sm text-md-right text-sm-left" })
+    }
+    else
+    {
+        //@Html.Label(forID, "", new { @class = "col-sm-4 col-form-label col-form-label-sm text-md-right text-sm-left" })
+    }
+    <div class="col-sm-@col">
+   @if(!isEmpty){
+
+        @Html.TextBox("Model." + key, Model.Properties[key].GetValue(Model.Model), (IDictionary<String, Object>)attributes)
+        @Html.ValidationMessage("Model." + key, "", new { @class = "text-danger small"})
+    }
+    </div>
+</div>

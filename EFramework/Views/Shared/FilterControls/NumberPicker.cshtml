@@ -1,0 +1,144 @@
+﻿@model hIndexModel
+@{
+    string key = ViewBag.Key;
+    string forID = Model.GetElementName("FilterInput_" + key);
+
+    //DUBLICATE CODE IN EDIT CONTROL OF SAME NAME!
+    //CHANGE HERE, CHANGE THERE!
+
+    //Calculate decimals.
+    var decimalTypes = new Type[] { typeof(float), typeof(double), typeof(decimal) };
+    var trueType = Nullable.GetUnderlyingType(Model.Properties[key].PropertyType);
+    trueType ??= Model.Properties[key].PropertyType; //Assign if is null.
+    var decimals = decimalTypes.Contains(trueType) ? 2 : 0;
+
+    //Override format if not set.
+    var format = Model.GetAttribute<Show2>(key).Format;
+    if (format == null)
+    {
+        format = $"#######" + (decimals > 0 ? $".{string.Join("", Enumerable.Repeat("0", decimals).ToArray())}" : "");
+    }
+
+    //Get min/max values.
+    var minValue = new double?(int.MinValue);
+    var maxValue = new double?(int.MaxValue);
+    if (!SpolisParameters.DecimalTypes.Contains(trueType))
+    {
+        var minValueField = trueType.GetField("MinValue", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+        var maxValueField = trueType.GetField("MaxValue", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+        try
+        {
+            if (minValueField != null) minValue = new double?(Convert.ToDouble(minValueField.GetValue(null)));
+            if (maxValueField != null) maxValue = new double?(Convert.ToDouble(maxValueField.GetValue(null)));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[WARNING] Index numeric control cannot get min/max numeric values from {trueType.Name} in {Model.ModelType.Name}.{key}!");
+        }
+
+        //Get min/max values from RangeAttribute.
+        var range = Model.GetAttribute<System.ComponentModel.DataAnnotations.RangeAttribute>(key);
+        minValue = range != null && range.Minimum != null ? Convert.ToDouble(range.Minimum) : minValue;
+        maxValue = range != null && range.Maximum != null ? Convert.ToDouble(range.Maximum) : maxValue;
+    }
+}
+
+<label class="col-sm-2 col-form-label col-form-label-sm text-md-right text-sm-left" for="@forID">
+    @Model.Names[key]
+</label>
+
+<input asp-for="@Model.FilterValues[key]" id="@forID" hidden>
+
+@{
+    var changeFunction = @$"function () {{OnValueChange(""{key}"", ""{forID}"");}}";
+}
+
+<div class="col-sm-2 mb-2">
+    @{
+        var attributes1 = new Dictionary<string, object>();
+        attributes1.Add("class", "form-control form-control-sm");
+        attributes1.Add("placeholder", "No");
+
+        var intp1Name = "numberpicker1" + key;
+    }
+
+    @(Html.Kendo().NumericTextBox()
+    .Decimals(decimals)
+    .Name(intp1Name)
+    .Format(format)
+    .HtmlAttributes(attributes1)
+    .Min(minValue)
+    .Max(maxValue)
+    .Events(e => e.Change(changeFunction)))
+</div>
+
+<div class="col-sm-2 mb-2">
+    @{
+        var attributes2 = new Dictionary<string, object>();
+        attributes2.Add("class", "form-control form-control-sm");
+        attributes2.Add("placeholder", "Līdz");
+
+        var intp2Name = "numberpicker2" + key;
+    }
+
+    @(Html.Kendo().NumericTextBox()
+    .Decimals(decimals)
+    .Name(intp2Name)
+    .Format(format)
+    .Min(minValue)
+    .Max(maxValue)
+    .HtmlAttributes(attributes2)
+    .Events(e => e.Change(changeFunction)))
+    
+</div>
+
+
+<script>
+
+    $(document).ready(function () {
+        LoadData("@key", "@forID");
+        IndexControl_FilterNumberPicker_limitMinMaxValue($('input[name="@intp1Name"]'), @minValue, @maxValue);
+        IndexControl_FilterNumberPicker_limitMinMaxValue($('input[name="@intp2Name"]'), @minValue, @maxValue);
+    });
+
+    function OnValueChange(key, forID) {
+        var num1 = "";
+        var num2 = "";
+
+        var jdtp1Name = "numberpicker1" + key;
+        var jdtp2Name = "numberpicker2" + key;
+
+        if ($("#"+jdtp1Name).val() !== undefined) {
+            num1 = $("#" + jdtp1Name).val();
+             $("#" + jdtp2Name).data("kendoNumericTextBox").min(num1);
+        }
+
+        if ($("#"+jdtp2Name).val() != undefined) {
+            num2 = $("#" + jdtp2Name).val();
+            $("#" + jdtp1Name).data("kendoNumericTextBox").max(num2);
+        }
+
+        $("#"+forID).val(num1 + "|" + num2);
+    }
+
+    function LoadData(key, forID) {
+
+        var jdtp1Name = "numberpicker1" + key;
+        var jdtp2Name = "numberpicker2" + key;
+
+        var val = $("#"+forID).val();
+
+        if (val != undefined) {
+            var parts = String(val).split("|");
+
+            var num1 = parts[0];
+            var num2 = parts[1];
+
+            if (num1 !== undefined && num1.length > 0) { $("#"+jdtp1Name).val(num1);}
+            if (num2 !== undefined && num2.length > 0) { $("#"+jdtp2Name).val(num2);}
+
+        }
+
+    }
+
+</script>

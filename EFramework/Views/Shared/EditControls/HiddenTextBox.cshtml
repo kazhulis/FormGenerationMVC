@@ -1,0 +1,14 @@
+﻿@model hIndexModel
+@{
+    string key = ViewBag.Key;
+    string forID = Model.GetElementName("EditInput_" + key);
+
+    var attributes = Model.GenerateEditorControlAttributes(key);
+    attributes.Add("class", "form-control form-control-sm");
+    attributes.Add("id", forID);
+    attributes.Add("hidden", "hidden");
+    attributes.Add("val", Model.Properties[key].GetValue(Model.Model));
+}
+<div>
+    @Html.TextBox("Model." + key, Model.Properties[key].GetValue(Model.Model), (IDictionary<String, Object>)attributes)
+</div>

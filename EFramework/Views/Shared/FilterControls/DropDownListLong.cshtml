@@ -1,0 +1,89 @@
+﻿@using SpolisShared
+@using Spolis
+@using SpolisShared.Templates
+@using System.Reflection
+
+@model hIndexModel
+@{
+    string key = ViewBag.Key;
+    string forID = Model.GetElementName("FilterInput_" + key);
+}
+
+@{
+    var attributes = Model.GenerateEditorControlAttributes(key);
+    attributes.Add("Name", $"{nameof(hIndexModel.FilterValues)}[{key}]");
+    attributes.Add("Class", "form-control form-control-sm");
+    SelectList ItemSource = null;
+    var sourceProperty = Model.GetAttribute<Show2>(key).SourcePropertyName;
+    if (sourceProperty != null)
+    {
+        ItemSource = (SelectList)Model.GetAttribute<Show2>(key).GetSourcePropertyValue(Model.ModelType, Model.Model);
+    }
+    if (ItemSource == null)
+    {
+        throw new Exception($"ItemSource not found for property '{key}' in model type '{Model.ModelType.Name}'");
+    }
+
+    //Import settings from select list if no filter is set.
+    if (Model.FilterValues[key] == null && ItemSource.SelectedValues != null)
+    {
+        var selectedValue = ((Clasificator)ItemSource.SelectedValue)?.ObjectValue.ToString();
+        Model.FilterValues[key] = selectedValue;
+    }
+
+    IList<object> itemList = (from object f in ItemSource.Items select f).ToList();
+
+    // Pārbaude uz FilterAddEmptyValue property, lai pievienoto tukšo vērtību dropdown'ā
+    var filterAddEmptyProp = ItemSource.GetType().GetProperty(nameof(SelectList<object>.FilterAddEmptyValue));
+    if (filterAddEmptyProp != null)
+    {
+        var filterAddEmptyValue = filterAddEmptyProp.GetValue(ItemSource);
+        if ((bool)filterAddEmptyValue)
+        {
+            itemList.Insert(0, new Clasificator<object>(string.Empty, null));
+        }
+    }
+    else
+    {
+        itemList.Insert(0, new Clasificator<object>(string.Empty, null));
+    }
+
+    ItemSource = new SelectList(itemList, ItemSource.DataValueField, ItemSource.DataTextField);
+
+}
+
+@*<label class="col-sm-2 col-form-label col-form-label-sm text-md-right text-sm-left" for="@forID">
+        @Model.Names[key]
+    </label>
+    <div class="col-sm-4 mb-2">
+        <kendo-dropdownlist for="@Model.FilterValues[key]" id="@forID"
+                            datatextfield="Text"
+                            datavaluefield="Value"
+                            bind-to="@ItemSource"
+                            filter="FilterType.StartsWith"
+                             .Filter(FilterType.StartsWith)
+                            class="form-control form-control-sm">
+        </kendo-dropdownlist>
+    </div>*@
+@Html.Label(forID, Model.Names[key], new { @class = "col-sm-2 col-form-label col-form-label-sm text-md-right text-sm-left" })
+
+<div class="col-sm-10 mb-2">
+
+    @{var control = Html.Kendo().DropDownList()
+                                           .Name(forID)
+                                           .BindTo(ItemSource)
+                                           .DataTextField("Text")
+                                           .DataValueField("Value")
+                                           .Value(Model.FilterValues[key])
+                                          .HtmlAttributes((IDictionary<String, Object>)attributes)
+                                          ;
+
+        if (ItemSource.Count() > (filterAddEmptyProp != null ? 5 : 4))
+        {
+            control.Filter(FilterType.StartsWith);
+        }
+    }
+
+    @(control)
+</div>
+

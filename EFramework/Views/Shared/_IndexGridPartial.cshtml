@@ -1,0 +1,146 @@
+﻿@using System.Linq
+@using Spolis.Attributes
+@using Spolis
+@using System.ComponentModel
+@model hIndexModel
+@{
+    var controllerName = this.ViewContext.RouteData.Values["controller"].ToString();
+}
+
+@{
+    //Get system names.
+    var gridId = Model.GetElementName(hIndexModel.eCommonNames.Grid);
+    var updateCountScriptName = gridId + "_UpdateCount";
+
+    //Get custom width.
+    object gridHeight = null;
+    Model.Meta.TryGetValue("GridHeight", out gridHeight); //This is old aproach. Use Instruction settings for similar requirements.
+    double resultHeight = gridHeight == null ? 500 : double.Parse(gridHeight.ToString());
+    if (Model.Instructions.Settings.Grid.Height.HasValue) resultHeight = Model.Instructions.Settings.Grid.Height.Value; //This is correct aproach!
+
+    //Get default sort key.
+    var sortKeyName = Model.GridKeys.First();
+    if (Model.Instructions.Settings.Grid.DefaultSortKey != null)
+    {
+        sortKeyName = Model.GridKeys.FirstOrDefault(f => f == Model.Instructions.Settings.Grid.DefaultSortKey);
+        if (sortKeyName == null)
+        {
+            var errorMsg = $"Instructions for '{Model.GetType().Name}' has set {nameof(Model.Instructions.Settings.Grid.DefaultSortKey)} to value '{Model.Instructions.Settings.Grid.DefaultSortKey}'";
+            errorMsg += Environment.NewLine;
+            errorMsg += "There are no property with this name, that is set to be visible in grid.";
+            throw new ArgumentException(errorMsg);
+        }
+    }
+}
+
+@(Html.Kendo().Grid<object>()
+    .AutoBind(false)
+    .Name(gridId)
+    .HtmlAttributes(new { @class = "small kenddo"})
+    .Selectable(s=> s.Enabled(Model.Instructions.Settings.Grid.RowsSelectable).Mode(GridSelectionMode.Multiple))
+    .Resizable(r=>r.Columns(Model.Instructions.Settings.Grid.ColumnsResizable))
+    .Columns(async columns =>
+    {
+        foreach (var f in Model.GridKeys)
+        {
+            var show = Model.GetAttribute<Show2>(f);
+            var ItemSource = (SelectList)show.GetSourcePropertyValue(Model.ModelType);
+            if(show is Show3)
+            {
+                var settings = ((Show3)show).Settings;
+                if(settings is iSettingsWithSource)
+                {
+                    ItemSource = ((iSettingsWithSource)settings).SelectList;
+                }
+            }
+            if (show.IsVisibleIn(In.Grid, Model.ModelType, Model.Model))
+            {
+                var isHidden = (show.EditControl == SpolisShared.Templates.EditTemplates.HiddenTextBox);
+                var bound = columns.Bound(f).Title(Model.Names[f]).Hidden(isHidden).HeaderHtmlAttributes(new { style = "text-align: center; white-space: normal" });
+
+            if (ItemSource != null)
+            {
+                string values = ItemSource != null ? string.Join("|", ItemSource.GetValues()) : null;
+                string texts = ItemSource != null ? string.Join("|", ItemSource.GetTexts()) : null;
+                bound = bound.ClientTemplate($"#=calculateGridField('{values}','{texts}','{f}', {f})#").HeaderHtmlAttributes(new { style = "text-align: center; white-space: normal" });
+            }
+            if (show?.Format != null) bound = bound.Format(show.Format);
+            if (show.ColumnWidth !=0)
+            {
+                bound.Width(show.ColumnWidth);
+            }
+        }
+    }
+    })
+    .Excel(excel =>
+    {
+        excel.FileName(Model.Title + ".xlsx");
+        excel.AllPages(true);
+        excel.Filterable(true);
+        excel.ForceProxy(true);
+        excel.ProxyURL(Url.Action(nameof(hIndexController<iModelMeta>
+            .DownloadGridPost), @controllerName));
+    })
+        .Sortable(s => s.AllowUnsort(false))
+        .NoRecords(n => n.TemplateId("no-records-template"))
+        .Scrollable(f=>f.Enabled(true))
+        .Pageable(f=>f.AlwaysVisible(false))
+        .Filterable(f => f.Enabled(false))
+        .Events(e=> {
+        e.DataBound("kendoGridDataBound");
+        e.DataBound("kendoGridAutoFitColumn");
+        e.ExcelExport("kendoGridExportWithTemplatesContent");
+    })
+        .Events(e => e.Change("onChanged").DataBound("function() { onDataBound("+gridId+") }"))
+        .DataSource(d => {
+        var ajax = d.Ajax();
+        ajax.Events(e => { e.Change(updateCountScriptName); e.Error("kendoErrorHandler"); });
+        ajax.PageSize(50);
+        ajax.Model(m =>
+        {
+            foreach (var f in Model.GridKeys)
+            {
+                if(Model.Properties[f].PropertyType == typeof(DateTime) || Nullable.GetUnderlyingType( Model.Properties[f].PropertyType) == typeof(DateTime))
+                {
+                    m.Field(f, typeof(DateTime));
+                }
+            }
+        });
+        switch (Model.Instructions.Settings.Grid.DefaultSortDirection)
+        {
+            case IndexInstructions.ViewSettings.GridSettings.eSortDirection.Ascending:
+                ajax.Sort(s => s.Add(sortKeyName).Ascending());
+                break;
+            case IndexInstructions.ViewSettings.GridSettings.eSortDirection.Descending:
+                ajax.Sort(s => s.Add(sortKeyName).Descending());
+                break;
+            default: throw new InvalidEnumArgumentException();
+        }
+        ajax.Read(a => a.Action(nameof(hIndexController<iModelMeta>
+            .ReadGrid), @controllerName));
+    }))
+
+<script>
+    function onDataBound(gridId) {
+        var id = gridId;
+        var cnt = $(id).data('kendoGrid').dataSource.total();
+        var h = $(id).data('kendoGrid').tbody.height();
+
+        var gridElement = $(id);
+        if (cnt < 1)
+            newHeight = 100;
+        else
+            newHeight = h + 50;
+
+        if (newHeight > 500) newHeight = 550;
+        otherElements = gridElement.children().not(".k-grid-content");
+        otherElementsHeight = 0;
+
+        otherElements.each(function () {
+            otherElementsHeight += $(this).outerHeight();
+        });
+        gridElement.children(".k-grid-content").height(newHeight - otherElementsHeight);
+    }
+   
+    function onChanged(arg) { }
+</script>

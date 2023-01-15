@@ -1,0 +1,124 @@
+﻿
+@model object
+@{
+    Spolis.Helpers.NavigationContext.virtualPath = Url.Content("~");
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Form generation</title>
+
+    <link href="~/lib/kendo/css/kendo.custom.css" rel="stylesheet" />
+    <link href="~/lib/kendo/css/kendo.common-bootstrap.min.css" rel="stylesheet" />
+
+    <script src="~/lib/kendo/js/jquery.min.js"></script>
+    <script src="~/lib/kendo/js/jszip.min.js"></script>
+    <script src="~/lib/kendo/js/kendo.all.min.js"></script>
+    <script src="~/lib/kendo/js/kendo.aspnetmvc.min.js"></script>
+    <script src="~/lib/kendo/js/kendo.culture.lv-LV.min.js"></script>
+    <script src="~/lib/kendo/js/kendo.messages.lv-LV.js"></script>
+    <script type="text/javascript">
+        kendo.culture("lv-LV");
+    </script>
+
+        <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.css" />
+        <link rel="stylesheet" href="~/lib/bootstrap-custom-lm/bootstrap-lm-theme.css" />
+    <link href="~/css/site.css" asp-append-version="true" rel="stylesheet" />
+    <link href="~/css/kendo.css" asp-append-version="true" rel="stylesheet" />
+
+</head>
+<body>
+        <header>
+            <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-0">
+                <div class="container-fluid">
+
+                    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                            aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="navbar-collapse collapse">
+
+
+
+                    
+                        <ul class="navbar-nav ml-auto">
+
+                            
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            @*Fix anoying navigation drop-down cluse issues*@
+            <script>
+                $('.navbar').find('.dropdown-menu').css('margin-top', '-10px');
+            </script>
+
+        </header>
+  
+
+    <div class="container mt-3" id="input-container">
+
+
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <div id="_IndexWindow"></div>
+
+
+    <div>
+        <input id="IndexNotSelectedMessage" type="hidden" value="@SpolisResources._NotSelectedMessage" />
+    </div>
+    <div>
+        <input id="IndexRedirectMessage" type="hidden" value="" />
+    </div>
+
+
+    <span id="notification" class="text-hide"></span>
+    <script id="infoTemplate" type="text/x-kendo-template">
+        <div class="container text-white">
+            <span>#= message #</span>
+        </div>
+    </script>
+    <script id="errorTemplate" type="text/x-kendo-template">
+        <div class="container text-white">
+            <span>#= message #</span>
+        </div>
+    </script>
+    <script id="successTemplate" type="text/x-kendo-template">
+        <div class="container text-white">
+            <span>#= message #</span>
+        </div>
+    </script>
+    <script id="no-records-template" type="text/x-kendo-template">
+        <strong>@SpolisResources.GenNoDataFound</strong>
+    </script>
+
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.js"></script>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/index.js" asp-append-version="true"></script>
+    <script src="~/js/indexCommon.js" asp-append-version="true"></script>
+    <script src="~/js/indexFilter.js" asp-append-version="true"></script>
+
+        <script src="~/lib/jquery-validation/dist/jquery.validate.js"></script>
+        <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.js"></script>
+        <script asp-append-version="true" src="~/lib/jquery-validation/dist/messages_lv.js"></script>
+  
+    <div id="genError" data-message="@SpolisResources.GenError"></div>
+    <div id="genDenied" data-message="@SpolisResources.GenDenied"></div>
+    <div id="messageDialogueContainer" data-request-url="@Url.Action("MessageDialogue", "Account")"></div>
+
+    <script>
+        // Lai strādātu validācijas atribūti kendo kontrolēm
+        $.validator.setDefaults({ ignore: '.data-val-ignore' });
+    </script>
+</body>
+</html>
+
+

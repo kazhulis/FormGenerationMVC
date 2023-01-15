@@ -1,0 +1,46 @@
+﻿@model IndexModel<Spolis.Index.ReturnModel>
+
+@{
+    Layout = null;
+
+    var controllerName = this.ViewContext.RouteData.Values["controller"].ToString();
+    var meta = Model.ExactModel;
+
+   }
+
+<form method="post" id="IndexReturnForm">
+
+    @{
+        var content = $"<p>{Messages.ReturnDialogMessage}</p>";
+        content += $"<div class=\"alert alert-warning\" role=\"alert\">";
+        @foreach (var f in meta.Changes)
+        {
+            if (f.Message?.Length > 0)
+            {
+                content += $"<label>- {f.Message}</label>";
+                content += $" <br />";
+            }
+        }
+        content += $"</div>";
+    }
+
+
+    @(Html.Kendo().Dialog()
+    .Name(@Model.GetElementName("ReturnConfirm"))
+    .Title(Messages.ReturnDialogTitle)
+    .Content(content)
+    .Visible(true)
+    .Width(400)
+    .Modal(true)
+    .HtmlAttributes( new{
+    url=@Url.Action("DeleteConfirm", @controllerName),
+    frmId=@Model.GetElementName(hIndexModel.eCommonNames.DeleteForm),
+    }).ButtonLayout("normal")
+    .Actions(actions =>
+    {
+    actions.Add().Text(@SpolisResources.BtnContinue).Primary(true).Action($"function() {{ showUnsavedChangesWarning = false; window.location.href = '{Model.ExactModel.Url}';}}");
+    actions.Add().Text(@SpolisResources.BtnClose).CssClass("k-group");
+    })
+    )
+
+</form>

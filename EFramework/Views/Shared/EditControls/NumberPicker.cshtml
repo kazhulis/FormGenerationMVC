@@ -1,0 +1,134 @@
+﻿@using System.Reflection;
+@model hIndexModel
+@{
+    string key = ViewBag.Key;
+    string forID = Model.GetElementName("EditInput_" + key);
+
+    //DUBLICATE CODE IN FILTER CONTROL OF SAME NAME!
+    //CHANGE HERE, CHANGE THERE!
+
+    var attributes = Model.GenerateEditorControlAttributes(key);
+    attributes.Add("class", "form-control form-control-sm");
+    attributes.Add("id", forID);
+    if (attributes.ContainsKey("readonly")) attributes.Add("style", @"background-color:#e9ecef");
+    //Calculate decimals.
+    var decimalTypes = new Type[] { typeof(float), typeof(double), typeof(decimal) };
+    var trueType = Nullable.GetUnderlyingType(Model.Properties[key].PropertyType);
+    trueType ??= Model.Properties[key].PropertyType; //Assign if is null.
+    var decimals = decimalTypes.Contains(trueType) ? 2 : 0;
+
+    //Override format if not set.
+    var format = Model.GetAttribute<Show2>(key).Format;
+    if (format == null)
+    {
+        format = $"#######" + (decimals > 0 ? $".{string.Join("", Enumerable.Repeat("0", decimals).ToArray())}" : "");
+    }
+
+    //Override required label for nullable types.
+    //This is required because kondo adds validation to all decimal types, nullable or not.
+    //This will disable "*" to label. Handled in site.js:handleRequiredLabel()
+    if (Nullable.GetUnderlyingType(Model.Properties[key].PropertyType) != null)
+    {
+        if (Model.GetAttribute<ValidateResource>(key) == null)
+            attributes.Add("override-required-label-value", "false");
+    }
+
+    if (Model.Location == hIndexModel.eLocation.Edit)
+    {
+        var updatePolicy = Model.GetPolicy(ModelPolicy.ePolicyType.Update);
+        //if (string.IsNullOrEmpty(updatePolicy) || !(await AuthorizationService.AuthorizeAsync(User, updatePolicy)).Succeeded)
+            if (!attributes.ContainsKey("readonly"))
+            {
+                attributes.Add("readonly", "readonly");
+                attributes.Add("style", @"background-color:#e9ecef");
+            }
+    }
+
+    double? ConvertFromUnasigned(object o)
+    {
+
+        if (o == null)
+        {
+            return null;
+        }
+        if (o.GetType() != typeof(double))
+        {
+            o = double.Parse(o.ToString());
+            if ((double)o == 0)
+            {
+
+                return null;
+            }
+            return new double?((double)o);
+        }
+        return (double?)o;
+    }
+
+
+
+    //Get min/max values.
+    var minValue = new double?(int.MinValue);
+    var maxValue = new double?(int.MaxValue);
+    if (!SpolisParameters.DecimalTypes.Contains(trueType))
+    {
+        var minValueField = trueType.GetField("MinValue", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+        var maxValueField = trueType.GetField("MaxValue", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+
+        try
+        {
+            if (minValueField != null) minValue = new double?(Convert.ToDouble(minValueField.GetValue(null)));
+            if (maxValueField != null) maxValue = new double?(Convert.ToDouble(maxValueField.GetValue(null)));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[WARNING] Index numeric control cannot get min/max numeric values from {trueType.Name} in {Model.ModelType.Name}.{key}!");
+        }
+    }
+    //Get min/max values from RangeAttribute.
+    var range = Model.GetAttribute<System.ComponentModel.DataAnnotations.RangeAttribute>(key);
+    minValue = range != null && range.Minimum != null ? Convert.ToDouble(range.Minimum) : minValue;
+    maxValue = range != null && range.Maximum != null ? Convert.ToDouble(range.Maximum) : maxValue;
+
+    //get max/step
+    var show = Model.Properties[key].GetCustomAttribute<Show3>();
+    show?.Initialize(Model.Properties[key], Model);
+    var step = 1;
+    double? max = null;
+
+    var settings = (NumberPickerSettings)show?.Settings;
+    if (settings != null)
+    {
+        step = settings.Step;
+        max = settings.Max;
+    }
+    var value = ConvertFromUnasigned(Model.Properties[key].GetValue(Model.Model));
+    //if (value == null) value = 0;
+}
+
+<div class="row">
+    @Html.Label(forID, Model.Names[key], new { @class = "col-sm-4 col-form-label col-form-label-sm text-md-right text-sm-left" })
+    <div class="col-sm-8">
+        @(Html.Kendo().NumericTextBox()
+        .Decimals(decimals)
+        .Name("Model." + key)
+        .Format(format)
+        .Value(value)
+        .HtmlAttributes((IDictionary<String, Object>)attributes)
+        .Min(settings?.Min)
+        .Max(settings?.Max)
+        .Placeholder(" ")
+        .Step(step)
+        .RestrictDecimals(true)
+        )
+
+        @Html.ValidationMessage("Model." + key, "", new { @class = "text-danger small" })
+    </div>
+</div>
+
+<script>
+    $(document).ready(function () {
+        var input = $('input[name="Model.@key"]');
+        IndexControl_FilterNumberPicker_limitMinMaxValue(input, @minValue, @maxValue);
+    })
+
+</script>

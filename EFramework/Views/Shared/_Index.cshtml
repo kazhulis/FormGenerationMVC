@@ -1,0 +1,125 @@
+﻿@using static Spolis.Index.IndexInstructions
+@model hIndexModel
+
+@{
+    if (Model.ShowLayout == false) Layout = null;
+
+    string title = Model.Title;
+    ViewData["Title"] = title;
+
+    IEnumerable<ModelPolicy> policies = Model.ModelType.GetCustomAttributes(true).Where(f => f.GetType() == typeof(ModelPolicy)).Cast<ModelPolicy>();
+
+    var controllerName = this.ViewContext.RouteData.Values["controller"].ToString();
+
+}
+
+@if (title != null && Model.ShowLayout)
+{
+    @*<div class="border-bottom border-dark mb-4">*@
+    <div class="border-bottom mb-4">
+
+        <h4>@title</h4>
+        @foreach (var f in Model.Context)
+        {
+            <h6>@Html.Raw(f)</h6>
+        }
+    </div>
+}
+@{
+    string gridFilterDivClasses = "card";
+    string gridDivClasses = "panel-body panel-border mt-4";
+}
+
+@if (Model.Instructions.Views.IndexFilters != null)
+{
+    if (Model.FilterKeys.Count != 0)
+    {
+        <div id="@($"{Model.GetElementName(hIndexModel.eCommonNames.FilterFormContainer)}")">
+            @await this.Html.PartialAsync(Model.Instructions.Views.IndexFilters, Model)
+        </div>
+    }
+}
+
+
+@if (Model.Instructions.Buttons.Where(w => w.Location == eButtonLocation.IndexGrid).Count() == 0)
+{
+    gridDivClasses = "panel-body panel-border";
+}
+
+<div class="@gridFilterDivClasses">
+    <div class="card-body bg-light">
+
+        <div class="row">
+
+            @*<input name="IndexManySelectedMessage" type="hidden" value="@SpolisResources._ManySelectedMessage" />*@
+            <input name="IndexNotSelectedMessage" type="hidden" value="@SpolisResources._NotSelectedMessage" />
+
+            @{
+                var buttonDivId = Model.GetElementName(hIndexModel.eCommonNames.Grid) + "_Buttons";
+            }
+
+            <div class="col-md-10 form-inline" id="@buttonDivId">
+                @{
+                    ViewData["ButtonLocation"] = (int)eButtonLocation.IndexGrid;
+                }
+                @await this.Html.PartialAsync(Model.Instructions.Views.IndexButtons, Model)
+            </div>
+
+            @{
+                var gridId = Model.GetElementName(hIndexModel.eCommonNames.Grid);
+                var infoId = gridId + "_Count";
+                var updateCountScriptName = gridId + "_UpdateCount";
+            }
+
+            <div class="col-md-2 text-right">
+                <label id="@infoId"></label>
+            </div>
+
+            <script>
+                function @updateCountScriptName@{
+                    <text>()</text>
+                }{
+                    var grid = $("#@gridId").data("kendoGrid");
+                    var info = $("#@infoId").text("@SpolisResources._RowCount" + " " + grid.dataSource.total());
+                }
+            </script>
+
+        </div>
+
+        <div class="@gridDivClasses">
+            @await Html.PartialAsync(Model.Instructions.Views.IndexGrid, Model)
+        </div>
+    </div>
+</div>
+
+@if (Model.Instructions != null && Model.Instructions.Views.IndexButtons != null)
+{
+    if (Model.Instructions.Buttons.Any(f => f.Location == eButtonLocation.IndexBottom))
+    {
+        ViewData["ButtonLocation"] = (int)eButtonLocation.IndexBottom;
+        <div class="card mt-4">
+            <div class="card-body bg-light">
+                @await this.Html.PartialAsync(Model.Instructions.Views.IndexButtons, Model)
+            </div>
+        </div>
+    }
+}
+
+<div id="@Model.GetElementName(hIndexModel.eCommonNames.DeleteWindow)"></div>
+
+@{
+    foreach (AttachScript f in Model.ModelType.GetCustomAttributes(typeof(AttachScript), true))
+    {
+        if (Model.Location == f.Location)
+        {
+            <script src="@($"~/js/{f.ScriptName}")" asp-append-version="true"></script>
+        }
+    }
+}
+
+<script>
+    $(document).ready(function () {
+        $("#IndexRedirectMessage").val("@Model.Message");
+
+    });
+</script>

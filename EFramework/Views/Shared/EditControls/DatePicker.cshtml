@@ -1,0 +1,71 @@
+﻿@using System.Reflection;
+@model hIndexModel
+@{
+    string key = ViewBag.Key;
+    string forID = Model.GetElementName("EditInput_" + key);
+
+    var attributes = Model.GenerateEditorControlAttributes(key);
+    attributes.Add("class", "form-control form-control-sm");
+    attributes.Add("id", forID);
+
+    if (attributes.ContainsKey("readonly")) attributes.Add("style", @"background-color:#e9ecef");
+    if (Model.Location == hIndexModel.eLocation.Edit)
+    {
+        var updatePolicy = Model.GetPolicy(ModelPolicy.ePolicyType.Update);
+        if (updatePolicy != SpolisPolicy.Ignore)
+            //if (string.IsNullOrEmpty(updatePolicy) || !(await AuthorizationService.AuthorizeAsync(User, updatePolicy)).Succeeded)
+                if (!attributes.ContainsKey("readonly"))
+                {
+                    attributes.Add("readonly", "readonly");
+                    attributes.Add("style", @"background-color:#e9ecef");
+                }
+    }
+
+    DateTime min = new DateTime(1950, 1, 1);
+    DateTime max = new DateTime(2099, 12, 31);
+
+    var show = Model.GetAttribute<Show2>(key);
+    var format = show.Format;
+
+    var show3 = Model.Properties[key].GetCustomAttribute<Show3>();
+    show3?.Initialize(Model.Properties[key], Model);
+
+    var settings = (DateTimeSettings)show3?.Settings;
+    if (settings != null)
+    {
+        format = settings.GridFormat;
+
+        if (settings.Min != null)
+            min = (DateTime)settings.Min;
+
+        if (settings.Max != null)
+            max = (DateTime)settings.Max;
+        if (max < min) max = min;
+    }
+
+    DateTime? ConvertFromUnasigned(object o)
+    {
+        if (o == null)
+            return null;
+        if (o.GetType() == typeof(DateTime))
+            return new DateTime?((DateTime)o);
+        return (DateTime?)o;
+    }
+
+}
+<div class="row">
+    @Html.Label(forID, Model.Names[key], new { @class = "col-sm-4 col-form-label col-form-label-sm text-md-right text-sm-left" })
+    <div class="col-sm-8">
+   
+            @(Html.Kendo().DatePicker()
+        .Name("Model." + key)
+        .Format(format)
+        .Min(min).Max(max)
+        .Value(ConvertFromUnasigned(Model.Properties[key].GetValue(Model.Model)))
+        .HtmlAttributes((IDictionary<String, Object>)attributes))
+
+
+        @Html.ValidationMessage("Model." + key, "", new { @class = "text-danger small" })
+    </div>
+</div>
+

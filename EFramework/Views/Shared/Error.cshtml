@@ -1,0 +1,25 @@
+﻿@model ErrorViewModel
+@{
+    ViewData["Title"] = SpolisResources.ErrTitle;
+}
+
+<h1 class="text-danger">@SpolisResources.ErrTitle</h1>
+<h2 class="text-danger">@SpolisResources.ErrMainDescription</h2>
+
+@if (Model.ShowRequestId)
+{
+    <p>
+        <strong>Request ID:</strong> <code>@Model.RequestId</code>
+    </p>
+}
+
+@*@if (Model.ErrorMessages != null && Model.ErrorMessages.Count > 0)
+{
+    <ul class="text-danger">
+        @foreach (var message in Model.ErrorMessages)
+        {
+            <li>@message</li>
+        }
+    </ul>
+}*@
+

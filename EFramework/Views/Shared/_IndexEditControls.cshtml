@@ -1,0 +1,170 @@
+﻿@using Kendo.Mvc.Extensions
+@using Spolis.Attributes
+@using Microsoft.AspNetCore.Authorization
+@using Serilog
+
+@model hIndexModel
+
+@{ // meta data
+
+    IEnumerable<ModelPolicy> policies = Model.ModelType.GetGenericArguments().Where(f => f.GetType() == typeof(ModelPolicy)).Cast<ModelPolicy>();
+
+    string key = ViewBag.Key;
+}
+
+@{ //Prepate tabs and groups
+    var headers = new Dictionary<string, IList<string>>();
+    var tabs = new Dictionary<string, Dictionary<string, IList<string>>>();
+
+    foreach (var fKey in Model.EditKeys)
+    {
+        var displayAttribute = Model.GetAttribute<DisplayResource>(fKey);
+
+        //Validate condition.
+        if (displayAttribute == null)
+        {
+            Log.Debug($"{nameof(DisplayResource)} attribute is not set for property '{fKey}' in ViewModel '{Model.ModelType.ToString()}'");
+        }
+
+        string tab = displayAttribute?.DisplayTab;
+        string group = displayAttribute?.DisplayGroup;
+
+        if (group == null) { group = string.Empty; }
+        else if (!int.TryParse(group, out _)) { group = Model.GetAttribute<DisplayResource>(fKey)?.DisplayGroup; }  //If group is a number, treat it as untiteled group.
+
+        var groups = headers;
+        if (!string.IsNullOrEmpty(tab))
+        {
+            if (!tabs.ContainsKey(tab))
+            {
+                tabs.Add(tab, new Dictionary<string, IList<string>>());
+            }
+            groups = tabs[tab];
+        }
+
+
+        if (!groups.ContainsKey(group))
+        {
+            groups.Add(group, new List<string>());
+        }
+
+        groups[group].Add(fKey);
+    }
+
+}
+
+
+@{
+    async Task RenderGroup(Dictionary<string, IList<string>> group)
+    {
+        foreach (var fGroup in group)
+        {
+            if (fGroup.Value.Any())
+            {
+    <div ctrl="Group">
+
+        @if (fGroup.Key != string.Empty && !int.TryParse(fGroup.Key, out _))
+        {
+            @*<div ctrl="groupHeader" class="form-row mt-2 border-bottom border-dark mb-2">*@
+            <div ctrl="groupHeader" class="form-row mt-2 mb-2">
+                @fGroup.Key
+            </div>
+        }
+
+        <div class="card">
+            <div class="card-body bg-light">
+                <div class="form-group row spl-margin-bottom-0">
+                    @{
+                        var i1 = 0;
+
+                        foreach (var fKey in fGroup.Value)
+                        {
+                            if (Model.EditKeys.Contains(fKey))
+                            {
+                                i1 += 1;
+
+                                var template = Model.GetAttribute<Show2>(fKey)?.EditControl;
+                                template ??= Model.GetAttribute<Show3>(fKey)?.EditControl;
+
+                                ViewBag.key = fKey;
+
+                                @Html.Raw(Model.GetControlContainerStartTag())
+                                var show = Model.GetAttribute<Show2>(fKey);
+                                var controlWidth = show.ControlWidth;
+                                var show3 = Model?.GetAttribute<Show3>(fKey);
+                                //if (show3 != null) { } 
+                                //    controlWidth = 6;
+
+                                var isVisible = (show.IsVisibleIn(hIndexModel.LocationToIn(Model.Location), Model.ModelType, Model.Model));
+                                var isEnabled = (show.IsEditableIn(hIndexModel.LocationToIn(Model.Location), Model.ModelType, Model.Model));
+                                var dynamicUpdate = (Model.GetAttribute<DynamicUpdateIgnore>(fKey) != null) ? "ignore" : "allow";
+
+                                <div ctrl="Container" @*This is used to find control location and modify it on change*@
+                                     class="@($"mb-2 col-sm-{controlWidth}")"
+                                     dynamicUpdate="@dynamicUpdate"
+                                     id="@Model.GetElementName($"{hIndexModel.eCommonNames.CtrlContainer.ToString()}_{fKey}")">
+
+                                    @if (isVisible)
+                                    {
+                                        if (template == null) throw new Exception($"Edit control has not been set for {Model.ModelType.Name}.{fKey}! Give {typeof(Show2).Name} attribute valid template or set editControl parameter.");
+                                        await Html.RenderPartialAsync(template, Model);
+                                        @if (isEnabled)//This is used to disable validation for read only controls
+                                        {
+                                            <input type="hidden" ctrl="Validator" name="@($"!Validator[{@fKey}]")" value="@($"model.{fKey}")" />
+                                        }
+
+                                    }
+                                </div>
+                                @Html.Raw(Model.GetControlContainerEndTag())
+                            }
+
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+            }
+        }
+    }
+
+}
+
+@if (headers.SelectMany(f => f.Value).Any())
+{
+    await RenderGroup(headers);
+}
+
+@if (tabs.SelectMany(f => f.Value.SelectMany(ff => ff.Value)).Any())
+{
+    <div class="mt-4">
+        <kendo-tabstrip name="@Model.GetElementName("EditInput_TabControl_" + key)" ctrl="TabRoot" on-activate="kendoTabStripActivate" on-select="saveActiveTab">
+            <items>
+
+                @{
+                    var selectedTabIndex = 0;
+                    int.TryParse(NavigationContext.Current.Routes.First().GetQueryValue("tab")?.ToString(), out selectedTabIndex);
+                }
+
+                @foreach (var fTab in tabs)
+                {
+                    @if (fTab.Value.SelectMany(f => f.Value).Any())
+                    {
+                        var fIdx = tabs.IndexOf(fTab);
+
+                        <tabstrip-item text="@fTab.Key" selected="@(fIdx==selectedTabIndex)" ctrl="TabHead" tabIdx="@fIdx">
+                            <content>
+                                <div ctrl="Tab" tabIdx="@fIdx">
+                                    @{
+                                        await RenderGroup(fTab.Value);
+                                    }
+                                </div>
+                            </content>
+                        </tabstrip-item>
+                    }
+                }
+
+            </items>
+        </kendo-tabstrip>
+    </div>
+}

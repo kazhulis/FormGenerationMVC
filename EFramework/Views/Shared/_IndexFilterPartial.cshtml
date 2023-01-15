@@ -1,0 +1,157 @@
+﻿@using SpolisShared.Templates
+@using Spolis.Attributes
+@using SpolisShared.Resource
+@using Microsoft.AspNetCore.Authorization
+@inject IAuthorizationService AuthorizationService
+
+@model hIndexModel
+@{
+    IEnumerable<ModelPolicy> policies = Model.ModelType.GetCustomAttributes(true).Where(f => f.GetType() == typeof(ModelPolicy)).Cast<ModelPolicy>();
+    var controllerName = this.ViewContext.RouteData.Values["controller"].ToString();
+    var formId = @Model.GetElementName(hIndexModel.eCommonNames.FilterForm);
+}
+
+@{
+    //Prepare tabs and groups
+    var groups = new Dictionary<string, IList<string>>();
+    if (Model.Instructions == null || Model.Instructions.Settings.Filter.ShowGroups)
+    {
+        foreach (var fKey in Model.FilterKeys)
+        {
+            var show = Model.GetAttribute<Show2>(fKey);
+            if (show.FilterControl == null) continue;
+
+            var displayAttribute = Model.GetAttribute<DisplayResource>(fKey);
+            var group = displayAttribute?.Group;
+            var panelBar = displayAttribute?.Group;
+
+            if (group == null) { group = string.Empty; }
+            else if (!int.TryParse(group, out _)) { group = Model.GetAttribute<DisplayResource>(fKey)?.DisplayGroup; }  //If group is a number, treat it as untiteled group.
+
+            if (!groups.ContainsKey(group))
+            {
+                groups.Add(group, new List<string>());
+            }
+            groups[group].Add(fKey);
+        }
+    }
+    else
+    {
+        groups.Add(string.Empty, new List<string>());
+        foreach (var fKey in Model.FilterKeys)
+        {
+            var show = Model.GetAttribute<Show2>(fKey);
+            if (show.FilterControl == null) continue;
+            groups[string.Empty].Add(fKey);
+        }
+    }
+}
+
+@if (groups.Any())
+{ //Show filter block only if there are properties to filter.
+    <form method="post" id="@formId" onsubmit="return false;">
+        <div>
+            @if (Model.Instructions.Settings.Filter.ShowFilterTitle)
+            {
+                <h6>@SpolisResources.GenFilter</h6>
+            }
+        </div>
+        <div class="card mb-4">
+            <div class="card-body bg-light">
+                @foreach (var fGroup in groups)
+                {
+            //        //PANEL BAR
+            //        @if (Model.Instructions.Settings.Filter.PanelBar.Contains(fGroup.Key))
+            //        {
+
+            ////            @(Html.Kendo().PanelBar()
+            ////.Name("panelbar")
+            ////.ExpandMode(PanelBarExpandMode.Multiple)
+            ////.Items(panelbar =>
+            ////{
+            ////panelbar.Add().Text(@SpolisResources.QuestionaryRelativeData)
+            ////.Expanded(false)
+            ////.Content(
+            ////    @<div id="ShowRelativeSection">
+            ////        @await Html.PartialAsync("ClientsPartial/_PersoCreateRelativePartialView", @Model)
+            ////    </div>
+            ////);
+            ////}))
+            //        }
+                    @if (fGroup.Key != string.Empty && !int.TryParse(fGroup.Key, out _))
+                    {
+                        <div class="border-bottom border-dark mb-4">
+                            <h7>
+                                @fGroup.Key
+                            </h7>
+                        </div>
+                    }
+
+                    <div class="form-group row">
+
+                        @{
+                            var i1 = 0;
+                        }
+
+                        @foreach (var f in fGroup.Value)
+                        {
+                            if (Model.FilterValues.ContainsKey(f))
+                            {
+                                var show = Model.GetAttribute<Show2>(f);
+                                var isVisible = (show.IsVisibleIn(hIndexModel.LocationToIn(Model.Location), Model.ModelType, Model.Model));
+                                if (isVisible)
+                                {
+                                    var template = show.FilterControl;
+                                    if (template != null) //Ignore if template is empty.
+                                    {
+                                        i1 += 1;
+                                        if (i1 % 2 == 0 && template == FilterTemplates.TextArea)
+                                        {
+                                            <div class="col-4"></div>
+                                        }
+
+                                        ViewBag.key = f;
+                                        @await Html.PartialAsync(template, Model)
+
+                                    }
+                                }
+                            }
+                        }
+                    </div>
+
+                }
+
+
+                @{
+                    var ReadPolicy = policies.Where(f => f.Type == ModelPolicy.ePolicyType.Read).FirstOrDefault();
+                }
+                @if (ReadPolicy != null && (await AuthorizationService.AuthorizeAsync(User, ReadPolicy.Policy)).Succeeded)
+                {
+
+                    <kendo-button name="@Model.GetElementName("ApplyFilterButton")"
+                          on-click="indexReadGrid"
+                          url="@Url.Action("ApplyFilter", controllerName)"
+                          gridId="@Model.GetElementName(hIndexModel.eCommonNames.Grid)"
+                          model="@Model.FilterValues"
+                          type="button"
+                          title="@SpolisResources.BtnFilter"
+                          class="btn-sm k-primary mr-1">
+                        <content>@SpolisResources.BtnFilter</content>
+                    </kendo-button>
+
+                    <kendo-button name="@Model.GetElementName("ClearFilterButton")"
+                          on-click="indexClearFilter"
+                          url="@Url.Action("ClearFilter", controllerName)"
+                          gridId="@Model.GetElementName(hIndexModel.eCommonNames.Grid)"
+                          containerId="@Model.GetElementName(hIndexModel.eCommonNames.FilterFormContainer)"
+                          type="button"
+                          title="@SpolisResources.BtnClearFilter"
+                          class="btn-sm">
+                        <content>@SpolisResources.BtnClearFilter</content>
+                    </kendo-button>
+                }
+            </div>
+        </div>
+    </form>
+}
+

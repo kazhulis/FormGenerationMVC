@@ -1,0 +1,95 @@
+﻿@using SpolisShared
+@using SpolisShared.Templates
+
+@model hIndexModel
+@{
+    string key = ViewBag.Key;
+    string forID = Model.GetElementName("FilterInput_" + key);
+}
+
+<label class="col-sm-2 col-form-label col-form-label-sm text-md-right text-sm-left" for="@forID">
+    @Model.Names[key]
+</label>
+
+<input asp-for="@Model.FilterValues[key]" id="@forID" hidden/>
+
+@{
+      var changeFunction = @$"function () {{OnDateChange(""{key}"", ""{forID}"");}}";
+}
+
+<div class="col-sm-2 mb-2">
+    @{
+        var attributes1 = new Dictionary<string, object>();
+        attributes1.Add("class", "form-control form-control-sm");
+        attributes1.Add("placeholder", "No");
+
+        var dtp1Name = "datepicker1" + key;
+    }
+
+    @(Html.Kendo().DatePicker()
+    .Name(dtp1Name)
+    .HtmlAttributes(attributes1)
+    .Events(e => e.Change(changeFunction)))
+</div>
+
+<div class="col-sm-2 mb-2">
+    @{
+        var attributes2 = new Dictionary<string, object>();
+        attributes2.Add("class", "form-control form-control-sm");
+        attributes2.Add("placeholder", "Līdz");
+
+        var dtp2Name = "datepicker2" + key;
+    }
+
+    @(Html.Kendo().DatePicker()
+    .Name(dtp2Name)
+    .HtmlAttributes(attributes2)
+    .Events(e => e.Change(changeFunction)))
+</div>
+
+<script>
+
+    $(document).ready(function () {
+        LoadData("@key", "@forID");
+    });
+
+    function OnDateChange(key, forID) {
+        var date1 = "";
+        var date2 = "";
+
+        var jdtp1Name = "datepicker1" + key;
+        var jdtp2Name = "datepicker2" + key;
+
+        if ($("#" + jdtp1Name).val() !== undefined) {
+            date1 = $("#" + jdtp1Name).val();
+            $("#" + jdtp2Name).data("kendoDatePicker").min(date1);
+        }
+
+        if ($("#" + jdtp2Name).val() !== undefined) {
+            date2 = $("#" + jdtp2Name).val();
+            $("#" + jdtp1Name).data("kendoDatePicker").max(date2);
+        }
+
+        $("#" + forID).val(date1 + "|" + date2);
+    }
+
+    function LoadData(key, forID) {
+
+        var jdtp1Name = "datepicker1" + key;
+        var jdtp2Name = "datepicker2" + key;
+
+        var val = $("#"+forID).val();
+
+        if (val != undefined) {
+            var parts = String(val).split("|");
+
+            var date1 = parts[0];
+            var date2 = parts[1];
+
+            if (date1 !== undefined && date1.length > 0) { $("#"+jdtp1Name).val(date1);}
+            if (date2 !== undefined && date2.length > 0) { $("#"+jdtp2Name).val(date2);}
+
+        }
+    }
+
+</script>

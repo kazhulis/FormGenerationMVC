@@ -1,0 +1,113 @@
+﻿@model hIndexModel
+
+@{
+    string title = Model.Title;
+    ViewData["Title"] = title;
+    int scrollPosHtml = 0;
+    var controllerName = this.ViewContext.RouteData.Values["controller"].ToString();
+    iModelMeta meta = (iModelMeta)Model.Model;
+    string key = ViewBag.Key;
+    var formId = Model.GetElementName(hIndexModel.eCommonNames.EditForm);
+}
+
+<form method="post" id="@formId">
+
+    @if (title != null)
+    {
+        @*<div class="border-bottom border-dark mb-4">*@
+        <div class="mb-4">
+            <h4>@title</h4>
+            @foreach (var f in Model.Context)
+            {
+                if (f.Contains(SpolisParameters.ErrorPrefix))
+                {
+                    <h6 class="text-danger">@Html.Raw(f.Replace(SpolisParameters.ErrorPrefix, ""))</h6>
+                }
+                else
+                {
+                    <h6>@Html.Raw(f)</h6>
+                }
+            }
+        </div>
+    }
+
+    <input type="hidden" name="Model.Id" id="@Model.GetElementName("EditInput_MetaId_" + key)" value="@meta.Id" />
+    <input type="hidden" name="location" id="@Model.GetElementName("EditInput_Location_" + key)" value="@Model.Location" />
+    <input type="hidden" name="@nameof(Model.ResultId)" value="@Model.ResultId" /> @*This is required for generated form dynamic update logic.*@
+
+    @await this.Html.PartialAsync(Model.Instructions.Views.EditControls, Model)
+
+    @if (Model.Instructions != null && Model.Instructions.Views.IndexButtons != null)
+    {
+        var buttonLocation = IndexInstructions.TranslateLocation(Model.Location);
+
+        if (Model.Instructions.Buttons.Any(f => f.Location == buttonLocation))
+        {
+            ViewData["ButtonLocation"] = buttonLocation;
+            <div class="card mt-4">
+                <div class="card-body bg-light">
+                    @await this.Html.PartialAsync(Model.Instructions.Views.IndexButtons, Model)
+                </div>
+            </div>
+        }
+    }
+
+    <div id="denyDialog"></div>
+
+    @*<script src="~/js/index.js"></script>
+        <script src="~/js/indexCommon.js"></script>*@
+
+    @{
+        foreach (AttachScript f in Model.ModelType.GetCustomAttributes(typeof(AttachScript), true))
+        {
+            if (Model.Location == f.Location)
+            {
+                <script src="@($"~/js/{f.ScriptName}")" asp-append-version="true"></script>
+            }
+        }
+    }
+
+    <script>
+        $(document).ready(function () {
+        //$(window).load(function () {
+     $("#IndexRedirectMessage").val("@Model.Message");
+            var url = "@Url.Action(nameof(hIndexController<iModelMeta>.DynamicUpdate), controllerName)";
+            var frmId = "@formId";
+           prepareDocument(url, frmId);
+        });
+    </script>
+
+    @{
+        var userId = Services.GetService<IUserHelper>().UserId;
+        var posRecord = ScrollHelper.Postions.Get(userId, Model.Controller.GetType());
+        if (posRecord is not null)
+        {
+            scrollPosHtml = posRecord.position;
+
+        }
+    }
+
+    <script type="text/javascript">
+
+        $(window).on('beforeunload', function () {
+               const  scrollPosY = window.scrollY;
+
+        var controllerName = '@controllerName';
+                var url = '@Url.Action("SaveScrollPosition")'
+                var params = {
+                    pos: scrollPosY,
+                    modelName: controllerName
+                }
+        function callBack(data) {
+                }
+            ajaxGetSync(url, params, callBack);
+            });
+
+
+            $(document).ready(function () {
+                const scrollpos = @scrollPosHtml;
+            window.scrollTo(0, scrollpos);
+            });
+
+    </script>
+</form>

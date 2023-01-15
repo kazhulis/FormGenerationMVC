@@ -1,0 +1,66 @@
+﻿@using Spolis
+@model hIndexModel
+@{
+    string key = ViewBag.Key;
+    string forID = Model.GetElementName("EditInput_" + key);
+
+    var attributes = Model.GenerateEditorControlAttributes(key);
+
+    SelectList ItemSource = null;
+    var show = Model.GetAttribute<Show2>(key);
+    if (show.SourcePropertyName != null)
+    {
+        ItemSource = (SelectList)show.GetSourcePropertyValue(Model.ModelType, Model.Model);
+    }
+    if (ItemSource == null)
+    {
+        throw new Exception($"ItemSource not found for property '{key}' in model type '{Model.ModelType.Name}'");
+    }
+
+    //Import settings from select list if no filter is set.
+    if(Model.FilterValues[key] == null && ItemSource.SelectedValues != null)
+    {
+        var selectedValues = (from Clasificator f in ItemSource.SelectedValues select f.ObjectValue.ToString());
+        Model.FilterValues[key] =string.Join(StringList.DefaultSeperator, selectedValues);
+    }
+
+    //var isEditable = show.IsEditableIn(hIndexModel.LocationToIn(Model.Location), Model.ModelType, Model.Model);
+    // var FilterValueEnable = show.FilterValueEnable;
+
+    var isEditable = true;
+    if (show.FilterValueEnable != null)
+       if (show.GetFilterPropertyValue(show.FilterValueEnable, Model.ModelType, Model.Model).ToLower() == "false") isEditable = false;
+
+    var forName = $"Model.{key}.{nameof(StringList<Object>.InnerString)}";
+
+    var value = Model.FilterValues[key];
+
+    string filterValue;
+    if (show.FilterValue != null)
+    {
+        filterValue = show.GetFilterPropertyValue(show.FilterValue, Model.ModelType, Model.Model);
+        value = filterValue;
+        if (value == "") value = null;
+    }
+}
+
+<label class="col-sm-2 col-form-label col-form-label-sm text-md-right text-sm-left" for="@forID">
+    @Model.Names[key]
+</label>
+
+<div class="col-sm-4 mb-2">
+    
+    <input asp-for="@Model.FilterValues[key]" id="@(forID)_val" type="hidden" value="@value" />
+
+    @(Html.Kendo().MultiSelect()
+        .Name(forID)
+        .Value(value?.Split(StringList.DefaultSeperator))
+        .BindTo(ItemSource)
+        .DataTextField("Text")
+        .DataValueField("Value")
+        .Filter(FilterType.Contains)
+        .HtmlAttributes((IDictionary<String, Object>)attributes)
+        .Enable(isEditable)
+        .Events(e=>e.Change($"(e)=>$('#{forID}_val').val(e.sender.value().join('{StringList.DefaultSeperator}'))"))
+    )
+</div>

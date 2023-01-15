@@ -1,0 +1,99 @@
+﻿@model hIndexModel
+@{
+    string key = ViewBag.Key;
+
+    string forID = Model.GetElementName("EditInput_" + key);
+
+    var attributes = Model.GenerateEditorControlAttributes(key);
+    attributes.Add("class", "form-control form-control-sm");
+    attributes.Add("id", forID);
+
+    if (Model.Location == hIndexModel.eLocation.Edit)
+    {
+        var updatePolicy = Model.GetPolicy(ModelPolicy.ePolicyType.Update);
+        if (updatePolicy != SpolisPolicy.Ignore)
+        {
+           // if (!string.IsNullOrEmpty(updatePolicy) && !(await AuthorizationService.AuthorizeAsync(User, updatePolicy)).Succeeded)
+           // {
+                if (!attributes.ContainsKey("readonly"))
+                {
+                    attributes.Add("readonly", "readonly");
+                    attributes.Add("hidden", "hidden");
+                    attributes.Add("style", @"background-color:#e9ecef");
+                }
+                else
+                {
+                    attributes.Add("style", @"background-color:#e9ecef");
+                }
+
+           // }
+        }
+    }
+
+    SelectList ItemSource = null;
+    var show = Model.GetAttribute<Show2>(key);
+    if (show.SourcePropertyName != null)
+    {
+        ItemSource = (SelectList)show.GetSourcePropertyValue(Model.ModelType, Model.Model);
+    }
+    if (ItemSource == null)
+    {
+        throw new Exception($"ItemSource not found for property '{key}' in model type '{Model.ModelType.Name}'");
+    }
+
+}
+
+    <div class="row">
+        @Html.Label(forID, Model.Names[key], new { @class = "col-sm-4 col-form-label col-form-label-sm text-md-right text-sm-left" })
+
+        <div class="col-sm-8">
+
+            @if (attributes.ContainsKey("readonly"))
+            {
+                @Html.Raw("<div hidden='true'>")
+            }
+
+           @{var control = Html.Kendo().DropDownList()
+                                      .Name("Model." + key)
+                                      .BindTo(ItemSource)
+                                      .DataTextField("Text")
+                                      .DataValueField("Value")
+                                      .Value(Model.Properties[key].GetValue(Model.Model)?.ToString())
+                                      .HtmlAttributes((IDictionary<String, Object>)attributes);
+
+               if(ItemSource.Count()>5)
+               {
+                   control.Filter(FilterType.Contains);
+               }
+               }
+            
+            @(control)
+                
+
+            @if (attributes.ContainsKey("readonly"))
+            {
+                @Html.Raw("</div>")
+            }
+
+
+            @if (attributes.ContainsKey("readonly"))
+            {
+                attributes.Remove("hidden");
+
+                string rawValue = Model.Properties[key].GetValue(Model.Model)?.ToString();
+                string sourceValue = ItemSource.FirstOrDefault(f => f.Value.Equals(rawValue))?.Text;
+                if (sourceValue == null)
+                {
+                    rawValue = ItemSource.FirstOrDefault()?.Value??"";
+                    sourceValue = ItemSource.FirstOrDefault(f => f.Value.Equals(rawValue))?.Text;
+                }
+
+                @Html.TextBox("RO_Model." + key, sourceValue, (IDictionary<String, Object>)attributes)
+
+            }
+
+            @Html.ValidationMessage("Model." + key, "", new { @class = "text-danger small" })
+
+
+        </div>
+    </div>

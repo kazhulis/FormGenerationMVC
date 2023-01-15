@@ -1,0 +1,31 @@
+﻿@model hIndexModel
+@{
+    string key = ViewBag.Key;
+    string forID = Model.GetElementName("FilterInput_" + key);
+    var isEditable = true;
+    
+    var show = Model.GetAttribute<Show2>(key);
+
+    if (show.FilterValueEnable != null)
+       if (show.GetFilterPropertyValue(show.FilterValueEnable, Model.ModelType, Model.Model).ToLower() == "false") isEditable = false;
+
+}
+
+<label class="col-sm-2 col-form-label col-form-label-sm text-md-right text-sm-left" for="@forID">
+    @Model.Names[key]
+</label>
+<div class="col-sm-4 mb-2">
+    @if (isEditable)
+    {
+    <input asp-for="@Model.FilterValues[key]" id="@forID"
+           class="form-control form-control-sm">
+    }
+    else
+    {
+        
+    <input asp-for="@Model.FilterValues[key]" id="@forID" readonly
+           class="form-control form-control-sm">
+    }
+
+</div>
+

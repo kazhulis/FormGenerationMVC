@@ -1,0 +1,15 @@
+﻿@model hIndexModel
+@{
+    string key = ViewBag.Key;
+    string forID = Model.GetElementName("FilterInput_" + key);
+}
+
+<div class="col-sm-12 mb-2 row">
+    <label class="col-sm-2 col-form-label col-form-label-sm text-md-right text-sm-left" for="@forID">
+        @Model.Names[key]
+    </label>
+    <div class="col-sm-10">
+        <textarea asp-for="@Model.FilterValues[key]" id="@forID"
+                  class="form-control form-control-sm"></textarea>
+    </div>
+</div>

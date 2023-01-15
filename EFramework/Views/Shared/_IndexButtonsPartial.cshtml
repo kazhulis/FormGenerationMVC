@@ -1,0 +1,91 @@
+﻿@using static Spolis.Index.IndexInstructions
+@model hIndexModel
+
+@{
+    IEnumerable<ModelPolicy> policies = Model.ModelType.GetCustomAttributes(true).Where(f => f.GetType() == typeof(ModelPolicy)).Cast<ModelPolicy>();
+    var controllerName = this.ViewContext.RouteData.Values["controller"].ToString();
+    var buttonLocation = Enum.Parse<eButtonLocation>(ViewData["ButtonLocation"].ToString());
+}
+
+
+@foreach (var fButton in Model.Instructions.Buttons.Where(f => f.Location == buttonLocation).OrderBy(f => f.OrderPriority))
+{
+    var enableButton = false;
+
+    if (fButton.Condition == null || fButton.Condition.Invoke(Model) == true)
+    {
+        var policy = policies.Where(f => f.Type.ToString() == fButton.Policy || (f.Type == ModelPolicy.ePolicyType.Custom && f.CustomType == fButton.Policy)).FirstOrDefault();
+        if (policy?.Policy == SpolisPolicy.Ignore)
+        {
+            enableButton = true;
+        }
+        //else if (policy != null && (await AuthorizationService.AuthorizeAsync(User, policy.Policy)).Succeeded)
+        //{
+            enableButton = true;
+       // }
+    }
+    if (enableButton == true)
+    {
+        var attributes = new Dictionary<string, object>();
+        if (fButton.Primary)
+            attributes.Add("class", "btn-sm k-primary mr-1");
+        else
+            attributes.Add("class", "btn-sm mr-1 k-button");
+        attributes.Add("type", "button");
+        attributes.Add("title", fButton.Title);
+        foreach (var fArg in fButton.Args)
+        {
+            var link = fArg.Value as Link;
+            var val = default(string);
+            if (link != null)
+            {
+                val = link.ToString(Model.Controller.GetType());
+            }
+            else
+            {
+                val = fArg.Value?.ToString();
+            }
+            attributes.Add(fArg.Key, val);
+        }
+
+        if (fButton.FileUploadFlag == false)
+        {
+            @(Html.Kendo().Button()
+                                        .Name(Model.GetElementName(fButton.Title.Replace(" ", "_")))
+                                        .Content(fButton.Title)
+                                        .Enable(fButton.Enabled)
+                                        .HtmlAttributes(attributes)
+                                        .Events(e => e.Click(fButton.Script)))
+        }
+        else
+        {
+            <div class="w-50" style="margin-top: 10px;">
+                @(Html.Kendo().Upload()
+                .Name("files")
+                .Async(a => a
+                    .Save(fButton.FileUpl.AsyncSave, fButton.FileUpl.Controller)
+                    .SaveField("files")
+                )
+                .Multiple(false)
+                .DropZone(".dropZoneElement")
+                .Validation(validation => validation.AllowedExtensions(fButton.FileUpl.AllowedExtensions))
+                .Events(e=>e.Success("onSuccess")))
+
+                <div class="demo-hint">Drīkst augšuplādēt tikai <strong>(@string.Join(',', fButton.FileUpl.AllowedExtensions))</strong> datnes.</div>
+            </div>
+        }
+    }
+}
+
+<script>
+    function onSuccess(e) {
+        console.log("Success");
+    }
+</script>
+
+<style>
+    .dropZoneElement {
+        
+        width: 0px;
+    }
+   </style>
